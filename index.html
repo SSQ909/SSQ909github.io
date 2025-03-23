@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字组合查找器</title>
+    <style>
+       .combination-label {
+            color: blue;
+            margin-right: 5px;
+        }
+
+       .hezhibeizhu {
+            display: inline-block;
+            color: #717179;
+        }
+
+       .danmabeizhu {
+            display: inline-block;
+            color: #717179;
+        }
+
+        ul {
+            list-style-type: none;
+        }
+
+        ul li {
+            margin-top: 3px;
+        }
+
+       .last-input {
+            margin-top: 10px;
+            color: #717179;
+        }
+
+        #result {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <p class="last-input" id="lastInputInfo"></p>
+    <h1>数字组合查找器</h1>
+    <label for="sumValue">和值:</label>
+    <input type="number" id="sumValue" placeholder="请输入和值">
+    <div class='hezhibeizhu'>//和值范围21 ~ 183,三个区间都至少有一个号</div>
+    <br><br>
+    <label for="luckyNumbers">胆码 (用空格分隔):</label>
+    <input type="text" id="luckyNumbers" placeholder="请输入 1 - 5 个胆码">
+    <div class='danmabeizhu'>//胆码用阿拉伯数字表示,例如 2 9 30,按顺序从小到大输入,最后一个胆码不要多空格</div>
+    <br><br>
+    <button id="findButton">查找组合</button>
+    <p id="result"></p>
+    <ul id="combinationList"></ul>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const findButton = document.getElementById('findButton');
+            findButton.addEventListener('click', findCombinations);
+
+            // 从 localStorage 中读取并填充上次输入的值
+            const lastSumValue = localStorage.getItem('lastSumValue');
+            const lastLuckyNumbers = localStorage.getItem('lastLuckyNumbers');
+            if (lastSumValue) {
+                document.getElementById('sumValue').value = lastSumValue;
+            }
+            if (lastLuckyNumbers) {
+                document.getElementById('luckyNumbers').value = lastLuckyNumbers;
+            }
+
+            // 显示上次输入信息
+            if (lastSumValue || lastLuckyNumbers) {
+                const lastInputInfo = document.getElementById('lastInputInfo');
+                lastInputInfo.textContent = `上次输入的和值为: ${lastSumValue || '无'}, 胆码为: ${lastLuckyNumbers || '无'}`;
+            }
+        });
+
+        function findCombinations() {
+            // 重置相关变量
+            const validCombinations = [];
+            const sumValue = parseInt(document.getElementById('sumValue').value);
+            const luckyNumbersInput = document.getElementById('luckyNumbers').value;
+            const luckyNumbers = luckyNumbersInput.split(' ').map(Number).filter(num =>!isNaN(num));
+
+            if (isNaN(sumValue) || sumValue < 21 || sumValue > 183 || luckyNumbers.length < 1 || luckyNumbers.length > 5) {
+                document.getElementById('result').textContent = '请输入有效的和值（范围 21 - 183）以及 1 - 5 个胆码。';
+                document.getElementById('combinationList').innerHTML = '';
+                return;
+            }
+            // 验证胆码范围及顺序
+            for (let i = 0; i < luckyNumbers.length; i++) {
+                if (luckyNumbers[i] < 1 || luckyNumbers[i] > 33) {
+                    document.getElementById('result').textContent = '胆码必须在 1 - 33 范围内，注意观察你输入的胆码是否有问题 如最后一个胆码多输入一个空格，如胆码和胆码之间只能有一个空格存在。';
+                    document.getElementById('combinationList').innerHTML = '';
+                    return;
+                }
+                if (i > 0 && luckyNumbers[i] <= luckyNumbers[i - 1]) {
+                    document.getElementById('result').textContent = '胆码必须按从小到大的顺序输入。';
+                    document.getElementById('combinationList').innerHTML = '';
+                    return;
+                }
+            }
+
+            const allNumbers = [];
+            for (let i = 1; i <= 11; i++) allNumbers.push(i);
+            for (let i = 12; i <= 22; i++) allNumbers.push(i);
+            for (let i = 23; i <= 33; i++) allNumbers.push(i);
+
+            // 生成所有可能的 6 个数字的组合
+            function generateCombinations(arr, len) {
+                const result = [];
+                function backtrack(start, current) {
+                    if (current.length === len) {
+                        result.push([...current]);
+                        return;
+                    }
+                    for (let i = start; i < arr.length; i++) {
+                        current.push(arr[i]);
+                        backtrack(i + 1, current);
+                        current.pop();
+                    }
+                }
+                backtrack(0, []);
+                return result;
+            }
+
+            const allCombinations = generateCombinations(allNumbers, 6);
+
+            for (const combination of allCombinations) {
+                // 检查是否包含所有胆码
+                const hasAllLuckyNumbers = luckyNumbers.every(num => combination.includes(num));
+                // 检查三个区间是否都至少有一个数字
+                const hasInterval1 = combination.some(num => num >= 1 && num <= 11);
+                const hasInterval2 = combination.some(num => num >= 12 && num <= 22);
+                const hasInterval3 = combination.some(num => num >= 23 && num <= 33);
+                // 检查和值是否相等
+                const currentSum = combination.reduce((acc, val) => acc + val, 0);
+
+                if (hasAllLuckyNumbers && hasInterval1 && hasInterval2 && hasInterval3 && currentSum === sumValue) {
+                    const sortedCombination = combination.slice().sort((a, b) => a - b);
+                    const combinationString = sortedCombination.join(',');
+                    if (!validCombinations.some(c => c.join(',') === combinationString)) {
+                        validCombinations.push(sortedCombination);
+                    }
+                }
+            }
+
+            // 对符合条件的组合进行排序
+            validCombinations.sort((a, b) => {
+                for (let i = 0; i < Math.min(a.length, b.length); i++) {
+                    if (a[i]!== b[i]) {
+                        return a[i] - b[i];
+                    }
+                }
+                return a.length - b.length;
+            });
+
+            document.getElementById('result').textContent = `符合条件的注数: ${validCombinations.length}`;
+
+            const list = document.getElementById('combinationList');
+            list.innerHTML = '';
+            validCombinations.forEach((combination, index) => {
+                const li = document.createElement('li');
+                const label = document.createElement('span');
+                label.textContent = `${index + 1}.`;
+                label.classList.add('combination-label');
+                li.appendChild(label);
+                li.appendChild(document.createTextNode(combination.join(', ')));
+                list.appendChild(li);
+            });
+
+            // 记录本次输入的值到 localStorage
+            localStorage.setItem('lastSumValue', document.getElementById('sumValue').value);
+            localStorage.setItem('lastLuckyNumbers', document.getElementById('luckyNumbers').value);
+
+            // 显示最新的上次输入信息
+            const lastInputInfo = document.getElementById('lastInputInfo');
+            lastInputInfo.textContent = `上次输入的和值为: ${localStorage.getItem('lastSumValue') || '无'}, 胆码为: ${localStorage.getItem('lastLuckyNumbers') || '无'}`;
+
+            // 清空输入框
+            document.getElementById('sumValue').value = '';
+            document.getElementById('luckyNumbers').value = '';
+        }
+    </script>
+</body>
+
+</html>    
